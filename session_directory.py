@@ -20,6 +20,8 @@ def get_session_dir(
     in ["habituation1", "habituation2", "training", "recall1", "recall2", "recall7"],
     base_dir: pathlib.Path = base_dir,
 ) -> pathlib.Path:
+
+    assert session.lower() in ["habituation1", "habituation2", "training", "recall1", "recall2", "recall7"], 'Incorrectly specified session'
     if isinstance(base_dir, str):
         base_dir = Path(base_dir)
 
