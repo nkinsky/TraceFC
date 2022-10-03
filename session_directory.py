@@ -10,7 +10,7 @@ from pathlib import Path
 # Use shell to figure out computer
 if os.environ["SHELL"] == "/bin/zsh":  # Laptop
     base_dir = Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats")
-elif os.environ["SHELL"] == "/bin/sh":  # Linux Desktop
+elif os.environ["SHELL"] in ["/bin/sh", "/bin/bash"]:  # Linux Desktop
     base_dir = Path("/data2/Trace_FC/Recording_Rats")
 
 
