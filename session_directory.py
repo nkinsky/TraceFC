@@ -37,3 +37,6 @@ def get_session_dir(
     session_dir = Path(base_dir / animal / f"{datestr}_{session.lower()}")
 
     return session_dir
+
+if __name__ == "__main__":
+    print('test')
