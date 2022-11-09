@@ -78,7 +78,7 @@ def plot_paired_CS_PETH(
     [a.set_ylabel("") for a in ax[:, 1:].reshape(-1)]
 
     # Make font smaller so that you can read titles
-    [a.set_title(a.get_title(), fontdict={"fontsize": 8}) for a in ax.reshape(-1)]
+    # [a.set_title(a.get_title(), fontdict={"fontsize": 8}) for a in ax.reshape(-1)]
 
     # overwrite inds == -1 with a blank plot with an x through it.
     silent_bool = neuron_inds.T == -1
