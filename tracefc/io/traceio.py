@@ -1,5 +1,21 @@
+import numpy as np
 import pandas as pd
 from pathlib import Path
+
+"""This class houses all code for coordinating trace conditioning events with 
+imaging/ephys data.
+9/4/2023 NK note: Note yet incorporated into this class, will eventually go there."""
+
+
+class TraceEvents:
+    def __init__(self, basedir, event_type):
+        pass
+
+    def from_csv(self):
+        pass
+
+    def to_epochs(self):
+        pass
 
 
 def load_events_from_csv(csvfile: str):
