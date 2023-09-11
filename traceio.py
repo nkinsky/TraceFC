@@ -61,12 +61,16 @@ def load_trace_events(
     exclude_str = None
     event_str = "blah"
     if event_type == "CS+":
+        assert (
+            session_type != "tone_habituation"
+        ), "No CS+ in 'tone_habituation' session_type"
         event_str = "CS_end" if session_type == "control_tone_recall" else "CS"
 
     elif event_type == "CS-":
-        assert (
-            session_type == "control_tone_recall"
-        ), 'Can only specify "CS-" as event_type for "control_tone_recall" session_type'
+        assert session_type in [
+            "control_tone_recall",
+            "tone_habituation",
+        ], 'Can only specify "CS-" as event_type for "control_tone_recall" or "tone_habituation" session_type'
         event_str = "CS"
         exclude_str = "CS_end"
 
