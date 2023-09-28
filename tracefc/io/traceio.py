@@ -110,3 +110,46 @@ def load_trace_events(
         return event_starts, event_ends
     else:
         return event_starts, event_ends, event_df
+
+
+def trace_ttl_to_openephys(
+    trace_cs_df: pd.DataFrame,
+    oe_ttls_df: pd.DataFrame,
+    ttl_lag=pd.Timedelta(0.33, unit="seconds"),
+    trace_ts_key="Timestamp",
+    oe_ts_key="datetimes",
+):
+    """Finds TTLs in OpenEphys that correspond to CS timestamps recorded from python in a CSV file, assuming a consistent
+    time lag from CS start to delivery in OpenEphys
+    ttl_lag: amount of time OE LAGS the csv in tracefc csv. Enter a negative number if lag is positive for some reason."""
+
+    cs_bool = np.zeros(len(oe_ttls_df[oe_ts_key]), dtype=bool)
+    event_ind = []
+    for ide, event in enumerate(trace_cs_df[trace_ts_key]):
+        cs_bool = cs_bool | (
+            (oe_ttls_df[oe_ts_key] > (event - ttl_lag))
+            & (oe_ttls_df[oe_ts_key] < (event + ttl_lag))
+        )
+        if (
+            sum(
+                (
+                    (oe_ttls_df[oe_ts_key] > (event - ttl_lag))
+                    & (oe_ttls_df[oe_ts_key] < (event + ttl_lag))
+                )
+            )
+            == 1
+        ):
+            event_ind.append(ide)
+
+    trace_cs_sync_df = oe_ttls_df[cs_bool]
+
+    # Calculate start time difference mean and std to make sure you are getting a consistent lag
+    # print(f'cs_bool sum = {cs_bool.sum()}, event_ind={event_ind}')  # For debugging
+    start_diff = (
+        trace_cs_sync_df[oe_ts_key] - trace_cs_df[trace_ts_key].iloc[event_ind].values
+    ).dt.total_seconds()
+    if np.isnan(start_diff.mean()):
+        print('No matching events found. Try increasing assumed lag in "ttl_lag" param')
+    else:
+        print(f"start time lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
+    return trace_cs_sync_df
