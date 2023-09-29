@@ -118,10 +118,16 @@ def trace_ttl_to_openephys(
     ttl_lag=pd.Timedelta(0.33, unit="seconds"),
     trace_ts_key="Timestamp",
     oe_ts_key="datetimes",
+    local_time="America/Detroit",
 ):
     """Finds TTLs in OpenEphys that correspond to CS timestamps recorded from python in a CSV file, assuming a consistent
     time lag from CS start to delivery in OpenEphys
-    ttl_lag: amount of time OE LAGS the csv in tracefc csv. Enter a negative number if lag is positive for some reason."""
+
+    :param trace_cs_df: dataframe with trace cs times from csv file
+    :param oe_ttls_df: dataframe with TTL times in OE file obtained from neuropy.io.openephysio.load_all_ttl_events
+    :param trace_ts_key/oe_ts_key: keys in above dataframes where datetime timestamps of each event are logged.
+    :param ttl_lag: amount of time OE LAGS the csv in tracefc csv. Enter a negative number if lag is
+    positive for some reason."""
 
     cs_bool = np.zeros(len(oe_ttls_df[oe_ts_key]), dtype=bool)
     event_ind = []
@@ -152,4 +158,10 @@ def trace_ttl_to_openephys(
         print('No matching events found. Try increasing assumed lag in "ttl_lag" param')
     else:
         print(f"start time lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
+
+    # Localize time to recording location in case recorded in different zone (e.g., UTC)
+    trace_cs_sync_df["datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
+        local_time
+    )
+
     return trace_cs_sync_df
