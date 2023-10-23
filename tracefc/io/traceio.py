@@ -129,6 +129,8 @@ def trace_ttl_to_openephys(
     :param ttl_lag: amount of time OE LAGS the csv in tracefc csv. Enter a negative number if lag is
     positive for some reason."""
 
+    # loop through each event in trace_cs_df and look for corresponding time in oe_ttls_df
+    # way too slow for anything above tens of events.
     cs_bool = np.zeros(len(oe_ttls_df[oe_ts_key]), dtype=bool)
     event_ind = []
     for ide, event in enumerate(trace_cs_df[trace_ts_key]):
@@ -160,7 +162,7 @@ def trace_ttl_to_openephys(
         print(f"start time lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
 
     # Localize time to recording location in case recorded in different zone (e.g., UTC)
-    trace_cs_sync_df["datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
+    trace_cs_sync_df.loc[:, "datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
         local_time
     )
 
