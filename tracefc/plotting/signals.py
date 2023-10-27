@@ -11,6 +11,7 @@ def plot_cs_mean_wavelet(
     cs_type: str,
     buffer_sec: tuple = (5, 35),
     freq_lims: tuple = (5, 12),
+    calc_mean: bool = True,
     ignore_epochs: Epoch = None,
     ax: plt.Axes = None,
     std_sxx=None,
@@ -33,9 +34,12 @@ def plot_cs_mean_wavelet(
     ax[0].axvline(30, color="r", linestyle="--")
 
     # Calculate and plot mean spectrogram
-    wv_mean = wv.get_pe_mean_spec(
-        cs_start_times, buffer_sec, ignore_epochs=ignore_epochs
-    )
+    if calc_mean:
+        wv_mean = wv.get_pe_mean_spec(
+            cs_start_times, buffer_sec, ignore_epochs=ignore_epochs
+        )
+    else:  # Use already calculated mean
+        wv_mean = wv
 
     # Calculate standard deviation for scaling spectrogram before calculating mean if specified
     if std_sxx is None:
