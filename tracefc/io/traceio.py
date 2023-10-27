@@ -119,6 +119,7 @@ def trace_ttl_to_openephys(
     trace_ts_key="Timestamp",
     oe_ts_key="datetimes",
     local_time="America/Detroit",
+    return_diff=False,
 ):
     """Finds TTLs in OpenEphys that correspond to CS timestamps recorded from python in a CSV file, assuming a consistent
     time lag from CS start to delivery in OpenEphys
@@ -166,4 +167,7 @@ def trace_ttl_to_openephys(
         local_time
     )
 
-    return trace_cs_sync_df
+    if return_diff:
+        return trace_cs_sync_df, start_diff
+    else:
+        return trace_cs_sync_df
