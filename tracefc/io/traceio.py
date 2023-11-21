@@ -171,3 +171,30 @@ def trace_ttl_to_openephys(
         return trace_cs_sync_df, start_diff
     else:
         return trace_cs_sync_df
+
+
+def grab_usv_folder(basepath: Path, cs_type: str in ['csp', 'csn', 'cs2', 'sync'], ext="WAV"):
+    """Locate and return correct .wav or .WAV file for usv detection"""
+    try:
+        if cs_type == "csp":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "1_tone_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "2_training").glob(f"**/*.{ext}"))[0]
+        elif cs_type == "csn":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "2_control_tone_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "1_tone_habituation").glob(f"**/*.{ext}"))[0]
+        elif cs_type == "sync":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "3_ctx_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "3_post").glob(f"**/*.{ext}"))[0]
+    except IndexError:
+        if ext == "wav":
+            wav_file = None
+        else:
+            wav_file = grab_usv_folder(basepath, cs_type, ext="wav")
+
+    return wav_file
