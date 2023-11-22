@@ -2,6 +2,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+import neuropy.io.openephysio as oeio
+
+ustart = "\033[4m"
+uend = "\033[0m"
+
 """This class houses all code for coordinating trace conditioning events with 
 imaging/ephys data.
 9/4/2023 NK note: Note yet incorporated into this class, will eventually go there."""
@@ -17,6 +22,115 @@ class TraceEvents:
     def to_epochs(self):
         pass
 
+
+class TraceSync:
+    """Class to synchronize trace conditioning events to other data, using OE timestamps as a common reference"""
+
+    def __init__(self, basepath: str or Path, read_oe: bool = True):
+        self.basepath = Path(basepath)
+        self.sync_df = None
+        if read_oe:
+            print('\033[4mOpenEphys recording times\033[0m')
+            self.sync_df = oeio.create_sync_df(self.basepath)
+            print('')
+        self.cs_oe_df = None
+        self.ttl_df = None
+
+        def load_cs():
+            if "training" in str(self.basepath):
+                # For tone habituation
+                csn_starts, csn_stops, csn_df = load_trace_events(self.basepath, session_type="tone_habituation",
+                                                                  event_type="CS-", return_df=True)
+                self.csn_starts, self.csn_stops, self.csn_df = csn_starts, csn_stops, csn_df
+                print(f'\033[4m{csn_starts.shape[0]} CS- events detected\033[0m')
+                print(csn_starts.head(6))
+                print("")
+
+                # For CS+ during training
+                cs_starts, cs_stops, cs_df = load_trace_events(self.basepath, session_type="training",
+                                                               event_type="CS+", return_df=True)
+                self.cs_starts, self.cs_stops, self.cs_df = cs_starts, cs_stops, cs_df
+
+                print(f'\033[4m{cs_starts.shape[0]} CS+ events detected\033[0m')
+                print(cs_starts.head(6))
+            elif "recall" in str(self.basepath):
+                # For tone recall CS+
+                cs_starts, cs_stops, cs_df = load_trace_events(self.basepath, session_type="tone_recall",
+                                                               event_type="CS+", return_df=True)
+                self.cs_starts, self.cs_stops, self.cs_df = cs_starts, cs_stops, cs_df
+                print(f'\033[4m{cs_starts.shape[0]} CS+ events detected\033[0m\n')
+                print(cs_starts.head(6))
+                print("")
+
+                # For control tone recall CS-
+                csn_starts, csn_stops, csn_df = load_trace_events(self.basepath, session_type="control_tone_recall",
+                                                                  event_type="CS-", return_df=True)
+                self.csn_starts, self.csn_stops, self.csn_df = csn_starts, csn_stops, csn_df
+                print(f'\033[4m{csn_starts.shape[0]} CS- events detected\033[0m\n')
+                print(csn_starts.head(6))
+                print("")
+
+                # For control tone recall CS+(2)
+                cs2_starts, cs2_stops, cs2_df = load_trace_events(self.basepath, session_type="control_tone_recall",
+                                                                  event_type="CS+", return_df=True)
+                self.cs2_starts, self.cs2_stops, self.cs2_df = cs2_starts, cs2_stops, cs2_df
+                print(f'\033[4m{cs2_starts.shape[0]} CS+(2) events detected\033[0m')
+                print(cs2_starts.head(6))
+            elif "habituation" in str(self.basepath):
+                # For tone habituation
+                csn_starts, csn_stops, csn_df = load_trace_events(self.basepath, session_type="tone_habituation",
+                                                                  event_type="CS-", return_df=True)
+                self.csn_starts, self.csn_stops, self.csn_df = csn_starts, csn_stops, csn_df
+                print(f'\033[4m{csn_starts.shape[0]} CS- events detected\033[0m')
+                print(csn_starts.head(6))
+
+        load_cs()
+
+    def load_ttls(self, sanity_check_channel: int = 1, zero_timestamps: bool = True):
+        """Import TTLs for CS from OpenEphys"""
+
+        self.ttl_df = oeio.load_all_ttl_events(self.basepath, sanity_check_channel=sanity_check_channel,
+                                               zero_timestamps=zero_timestamps)
+        print(self.ttl_df[self.ttl_df['channel_states'].abs() == 2].head(5))
+
+    def cs_to_oe(self, cs_name: str in ['cs', 'csn', 'cs2'], cs_ttl_chan: int = 2,
+                 ttl_lag_use: pd.Timedelta = pd.Timedelta(0.8, unit="seconds")):
+        """Sync CS events in .csv file to OE timestamps"""
+
+        df_list = []
+        print(f"{ustart}{cs_name.upper()} lag times{uend}")
+        for event in ["starts", "stops"]:
+            # Grab CS times corresponding to OE timestamps
+            cs_oe_df = trace_ttl_to_openephys(getattr(self, f"{cs_name}_{event}"),
+                                                      self.ttl_df[self.ttl_df['channel_states'].abs() == cs_ttl_chan],
+                                                      ttl_lag=ttl_lag_use)
+            cs_times_eeg = oeio.recording_events_to_combined_time(cs_oe_df, self.sync_df)
+            cs_oe_df.insert(loc=cs_oe_df.shape[1], column="eeg_time", value=cs_times_eeg)
+            cs_oe_df.insert(loc=cs_oe_df.shape[1], column="label", value=[f"{cs_name}_{event[:-1]}"]*len(cs_times_eeg))
+            df_list.append(cs_oe_df)
+        df_list
+
+        if isinstance(self.cs_oe_df, pd.DataFrame):
+            cs_oe_df = pd.concat(df_list, axis=0).sort_values(by="eeg_time").reset_index()
+            df_list = [self.cs_oe_df, cs_oe_df]
+        cs_oe_df = pd.concat(df_list, axis=0).sort_values(by="eeg_time").reset_index()
+
+        return cs_oe_df
+
+    def all_cs_to_oe(self, **kwargs):
+        """Loads in ALL CS types to oe_cs_df"""
+        for cs_type in ["cs", "csn", "cs2"]:
+            if hasattr(self, f"{cs_type}_starts"):
+                try:
+                    self.cs_oe_df = self.cs_to_oe(cs_type, **kwargs)
+                except ValueError:
+                    print('cs_oe_df already created for all event types - nothing ran')
+
+        return self.cs_oe_df
+
+    def correct_wav_drift(self):
+        """Corrects wav file drift if you know the correct start time of a recording"""
+        pass
 
 def load_events_from_csv(csvfile: str):
     """Load events into pandas format and get absolute timestamps."""
@@ -160,10 +274,10 @@ def trace_ttl_to_openephys(
     if np.isnan(start_diff.mean()):
         print('No matching events found. Try increasing assumed lag in "ttl_lag" param')
     else:
-        print(f"start time lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
+        print(f"TTL to CSV lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
 
     # Localize time to recording location in case recorded in different zone (e.g., UTC)
-    trace_cs_sync_df.loc[:, "datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
+    trace_cs_sync_df.loc[:, ("datetimes")] = trace_cs_sync_df["datetimes"].dt.tz_localize(
         local_time
     )
 
@@ -198,3 +312,12 @@ def grab_usv_folder(basepath: Path, cs_type: str in ['csp', 'csn', 'cs2', 'sync'
             wav_file = grab_usv_folder(basepath, cs_type, ext="wav")
 
     return wav_file
+
+
+if __name__ == "__main__":
+    from session_directory import get_session_dir
+    animal, sess_name = 'Rose', 'training'
+    sess_dir = get_session_dir(animal, sess_name)
+    tfc_sync = TraceSync(sess_dir)
+    tfc_sync.load_ttls()
+    tfc_sync.all_cs_to_oe()
