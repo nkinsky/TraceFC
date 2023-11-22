@@ -119,6 +119,7 @@ def trace_ttl_to_openephys(
     trace_ts_key="Timestamp",
     oe_ts_key="datetimes",
     local_time="America/Detroit",
+    return_diff=False,
 ):
     """Finds TTLs in OpenEphys that correspond to CS timestamps recorded from python in a CSV file, assuming a consistent
     time lag from CS start to delivery in OpenEphys
@@ -129,6 +130,8 @@ def trace_ttl_to_openephys(
     :param ttl_lag: amount of time OE LAGS the csv in tracefc csv. Enter a negative number if lag is
     positive for some reason."""
 
+    # loop through each event in trace_cs_df and look for corresponding time in oe_ttls_df
+    # way too slow for anything above tens of events.
     cs_bool = np.zeros(len(oe_ttls_df[oe_ts_key]), dtype=bool)
     event_ind = []
     for ide, event in enumerate(trace_cs_df[trace_ts_key]):
@@ -160,8 +163,38 @@ def trace_ttl_to_openephys(
         print(f"start time lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
 
     # Localize time to recording location in case recorded in different zone (e.g., UTC)
-    trace_cs_sync_df["datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
+    trace_cs_sync_df.loc[:, "datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
         local_time
     )
 
-    return trace_cs_sync_df
+    if return_diff:
+        return trace_cs_sync_df, start_diff
+    else:
+        return trace_cs_sync_df
+
+
+def grab_usv_folder(basepath: Path, cs_type: str in ['csp', 'csn', 'cs2', 'sync'], ext="WAV"):
+    """Locate and return correct .wav or .WAV file for usv detection"""
+    try:
+        if cs_type == "csp":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "1_tone_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "2_training").glob(f"**/*.{ext}"))[0]
+        elif cs_type == "csn":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "2_control_tone_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "1_tone_habituation").glob(f"**/*.{ext}"))[0]
+        elif cs_type == "sync":
+            if "recall" in str(basepath):
+                wav_file = sorted((basepath / "3_ctx_recall").glob(f"**/*.{ext}"))[0]
+            elif "training" in str(basepath):
+                wav_file = sorted((basepath / "3_post").glob(f"**/*.{ext}"))[0]
+    except IndexError:
+        if ext == "wav":
+            wav_file = None
+        else:
+            wav_file = grab_usv_folder(basepath, cs_type, ext="wav")
+
+    return wav_file
