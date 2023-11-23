@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 import neuropy.io.openephysio as oeio
+from neuropy.core.epoch import Epoch
 
 ustart = "\033[4m"
 uend = "\033[0m"
@@ -37,6 +38,7 @@ class TraceSync:
         self.ttl_df = None
 
         def load_cs():
+            """Loads in cs times from CSV files - not exact, will need to be synced later"""
             if "training" in str(self.basepath):
                 # For tone habituation
                 csn_starts, csn_stops, csn_df = load_trace_events(self.basepath, session_type="tone_habituation",
@@ -127,6 +129,14 @@ class TraceSync:
                     print('cs_oe_df already created for all event types - nothing ran')
 
         return self.cs_oe_df
+
+    def to_epochs(self, cs_name: str in ['cs', 'csn', 'cs2']):
+        cs_starts_eeg = self.cs_oe_df[self.cs_oe_df.label == f"{cs_name}_start"].eeg_time.values
+        cs_stops_eeg = self.cs_oe_df[self.cs_oe_df.label == f"{cs_name}_stop"].eeg_time.values
+        assert cs_name in ['cs', 'csn', 'csp']
+        cs_label = 'CS+' if cs_name in ['cs', 'cs2'] else 'CS-'
+        return Epoch(pd.DataFrame({"start": cs_starts_eeg, "stop": cs_stops_eeg,
+                                   "label": [cs_label]*len(cs_starts_eeg)}))
 
     def correct_wav_drift(self):
         """Corrects wav file drift if you know the correct start time of a recording"""
@@ -277,7 +287,7 @@ def trace_ttl_to_openephys(
         print(f"TTL to CSV lag: mean = {start_diff.mean()}, std = {start_diff.std()}")
 
     # Localize time to recording location in case recorded in different zone (e.g., UTC)
-    trace_cs_sync_df.loc[:, ("datetimes")] = trace_cs_sync_df["datetimes"].dt.tz_localize(
+    trace_cs_sync_df.loc[:, "datetimes"] = trace_cs_sync_df["datetimes"].dt.tz_localize(
         local_time
     )
 
