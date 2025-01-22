@@ -305,10 +305,10 @@ def grab_usv_folder(basepath: Path, cs_type: str in ['csp', 'csn', 'cs2', 'sync'
                 wav_file = sorted((basepath / "1_tone_recall").glob(f"**/*.{ext}"))[0]
             elif "training" in str(basepath):
                 wav_file = sorted((basepath / "2_training").glob(f"**/*.{ext}"))[0]
-        elif cs_type == "csn":
+        elif cs_type in ("csn", "cs2"):
             if "recall" in str(basepath):
                 wav_file = sorted((basepath / "2_control_tone_recall").glob(f"**/*.{ext}"))[0]
-            elif "training" in str(basepath):
+            elif ("training" in str(basepath)) or ("habituation" in str(basepath)):
                 wav_file = sorted((basepath / "1_tone_habituation").glob(f"**/*.{ext}"))[0]
         elif cs_type == "sync":
             if "recall" in str(basepath):
